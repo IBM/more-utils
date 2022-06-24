@@ -21,6 +21,12 @@ jobs:
       - name: Install more-utils and its dependencies
         run: |
           pip install .
+      
+      - name: Install PyModelarDB
+        run: |
+          git clone https://github.com/ModelarData/PyModelarDB.git
+          cd PyModelarDB
+          pip install .
 
   test:
     runs-on: ubuntu-18.04
@@ -38,6 +44,12 @@ jobs:
       - name: Install more-utils and its dependencies
         run: |
           pip install .["test"]
+      
+      - name: Install PyModelarDB
+        run: |
+          git clone https://github.com/ModelarData/PyModelarDB.git
+          cd PyModelarDB
+          pip install .
 
       - name: Run tests with pytest
         run: python -m pytest --tb=native tests
