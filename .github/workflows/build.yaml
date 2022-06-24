@@ -1,0 +1,43 @@
+name: MoreUtils CI
+on: 
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout more-utils repo
+        uses: actions/checkout@v3
+
+      - name: Install python version 3.8
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.8"
+
+      - name: Install more-utils and its dependencies
+        run: |
+          pip install .
+
+  test:
+    runs-on: ubuntu-18.04
+    timeout-minutes: 5
+    needs: build
+    steps:
+      - name: Checkout more-utils repo
+        uses: actions/checkout@v3
+
+      - name: Install python version 3.8
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.8"
+
+      - name: Install more-utils and its dependencies
+        run: |
+          pip install .["test"]
+
+      - name: Run tests with pytest
+        run: python -m pytest --tb=native tests
