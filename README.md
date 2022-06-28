@@ -59,8 +59,11 @@ pip install -e .
 
 ## Testing
 
-Unit tests are contained in the `tests` directory.
+Unit tests are contained in the [**tests**](https://github.com/IBM/more-utils/tree/main/tests) directory.
 
 ## Usage
 
 A series of [**examples**](https://github.ibm.com/Dublin-Research-Lab/more-utils/tree/main/examples) in the repository shows how to use various functions of MoreUtils.
+
+## Acknowledgment
+This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No 957345 for MORE project.
