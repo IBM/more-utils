@@ -2,6 +2,8 @@
 
 import itertools
 from typing import Dict, Union, List
+from uuid import uuid1
+from numpy import int64
 import pandas as pd
 from more_utils.util.logging import configure_logger
 from more_utils.persistence.base import AbstractDBLayer
@@ -191,7 +193,7 @@ class TimeSeries(JsonAccessor, PandasAccessor, PySparkAccessor):
 class BaseService:
     """Base class for Time Series Service."""
 
-    def __init__(self, source_db_conn: AbstractDBLayer, sink_db_conn: AbstractDBLayer=None) -> None:
+    def __init__(self, source_db_conn: AbstractDBLayer=None, sink_db_conn: AbstractDBLayer=None) -> None:
         self.source_db_conn = source_db_conn
         self.sink_db_conn = sink_db_conn
 
@@ -352,11 +354,22 @@ class TimeseriesService(BaseService):
 
         return TimeSeries(result_generators)
     
-    def store_time_series(self, df:pd.DataFrame, namespace:str=None):
+    def store_time_series(self, df:pd.DataFrame, namespace:str=None)->uuid1:
+        """Store time series data into Cassandra cluster.
+
+        Args:
+            df (pd.DataFrame): Input DataFrame
+            namespace (str, optional): Namespace to insert the table to. Defaults to None.
+
+        Returns:
+            uuid1: The uuid1 time-series id.
+        """        
         ts_entity = cassandradb.create_timeseries_entity(df)
         with self.sink_db_conn.create_session() as session:
             rows = session.execute("SELECT table_name FROM system_schema.tables WHERE keyspace_name='"+ts_entity.__keyspace__+"';")
             tables = [row["table_name"] for row in rows.all()]
             if not ts_entity.__table_name__ in tables:
                 session.create_schema(ts_entity)
-            session.insert(df, ts_entity)
+            time_series_id = session.insert(df, ts_entity)
+
+        return time_series_id

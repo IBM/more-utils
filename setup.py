@@ -15,6 +15,7 @@ setup(
         "pika==0.13.0",
         "pandas==1.4.3",
         "pyspark==3.2.1",
+        "cassandra-driver==3.25.0",
         "logzero",
         "ipykernel",
     ],
