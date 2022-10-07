@@ -2,6 +2,9 @@
 
 MoreUtils is a Python package to support MORE applications. With moreutils, you can retrieve de-compressed time series / data models from [**ModelarDB**](https://github.com/ModelarData/ModelarDB), save and load models to the cloud object storage, upload timeseries forecast and more.
 
+## Current State:
+The release tag v1.0.0 is the first integrated version that works with other MORE applications.
+
 ## Installation
 
 It is strongly recommended that a virtual environment (like venv or conda) is created to run MoreUtils to avoid dependency conflicts with already
