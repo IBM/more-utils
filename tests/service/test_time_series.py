@@ -16,7 +16,7 @@ class TestTimeseriesService:
         )
 
         conn_obj = ModelarDB.connect(hostname="localhost", interface="arrow")
-        ts_service = TimeseriesService(db_conn=conn_obj)
+        ts_service = TimeseriesService(source_db_conn=conn_obj)
         decompressed_ts = ts_service.get_time_series_data_from_ts_ids(
             ts_ids=[1],
             from_date="2019-01-01 00:00:02.0",
@@ -45,7 +45,7 @@ class TestTimeseriesService:
         )
 
         conn_obj = ModelarDB.connect(hostname="localhost", interface="arrow")
-        ts_service = TimeseriesService(db_conn=conn_obj)
+        ts_service = TimeseriesService(source_db_conn=conn_obj)
         decompressed_ts = ts_service.get_time_series_data_from_ts_ids(
             ts_ids=[1, 2, 3],
             from_date="2019-01-01 00:00:02.0",
@@ -80,7 +80,7 @@ class TestTimeseriesService:
         )
 
         conn_obj = ModelarDB.connect(hostname="localhost", interface="arrow")
-        ts_service = TimeseriesService(db_conn=conn_obj)
+        ts_service = TimeseriesService(source_db_conn=conn_obj)
         decompressed_ts = ts_service.get_time_series_data_from_ts_ids(
             ts_ids=[1, 2, 3],
             from_date="2019-01-01 00:00:02.0",
@@ -116,7 +116,7 @@ class TestTimeseriesService:
         )
 
         conn_obj = ModelarDB.connect(hostname="localhost", interface="arrow")
-        ts_service = TimeseriesService(db_conn=conn_obj)
+        ts_service = TimeseriesService(source_db_conn=conn_obj)
         ts_data_models = ts_service.get_time_series_data_models_from_ts_ids(
             [1, 2], limit=2
         )

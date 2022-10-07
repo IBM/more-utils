@@ -4,7 +4,7 @@ import csv
 import tempfile
 from pathlib import Path
 import pandas as pd
-
+from typing import List, Union
 
 class TimeseriesGenerator:
     """[summary]
@@ -17,20 +17,20 @@ class TimeseriesGenerator:
 
     def split_time_series_by_features(
         self,
-        input_file_path,
-        timestamp_column,
-        features,
-        delimiter=",",
-        output_location=tempfile.mkdtemp(),
+        input_file_path: str,
+        timestamp_column: str,
+        features: List[str],
+        delimiter: Union[str, None]=",",
+        output_location: str=tempfile.mkdtemp(),
     ):
         """Split time series data on the features.
 
         Arguments:
             input_file_path (mandatory): location of the time series file.
+            timestamp_column (str, optional): label of the timeseries column.
             features ([str], mandatory): List of features to split time series.
             delimiter ([str], optional): input file delimiter. Defaults to ",".
-            output_location ([str], optional): output directory to store split
-                                               dataframes.
+            output_location ([str], optional): output directory to store split dataframes.
 
         Raises:
             ValueError: if any param is not a valid argument.

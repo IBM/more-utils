@@ -52,6 +52,9 @@ class ModelarDBSession(AbstractDBSession):
             print("Exception: ", str(error))
             return 0
 
+    def insert(self, data):
+        raise NotImplementedError()
+        
     def __exit__(self, *args):
         return self.close()
 
