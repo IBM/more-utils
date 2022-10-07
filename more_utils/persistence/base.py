@@ -33,18 +33,12 @@ class AbstractDBSession(abc.ABC):
     def __init__(self) -> None:
         pass
 
-    @property
-    @abc.abstractmethod
-    def rowcount(self):
-        raise NotImplementedError()
-
-    @property
-    @abc.abstractmethod
-    def columns(self):
-        raise NotImplementedError()
-
     @abc.abstractmethod
     def execute(self, query):
+        raise NotImplementedError()
+    
+    @abc.abstractmethod
+    def insert(self, data):
         raise NotImplementedError()
 
     @abc.abstractmethod

@@ -5,8 +5,10 @@ from typing import Dict, Union, List
 import pandas as pd
 from more_utils.util.logging import configure_logger
 from more_utils.persistence.base import AbstractDBLayer
+import more_utils.persistence.cassandradb as cassandradb
 from .accessors import JsonAccessor, PandasAccessor, PySparkAccessor
 from .queries import safe_substitute
+
 
 logger = configure_logger()
 TIME_SERIES_ID_LABEL = "TID"
@@ -189,19 +191,16 @@ class TimeSeries(JsonAccessor, PandasAccessor, PySparkAccessor):
 class BaseService:
     """Base class for Time Series Service."""
 
-    def __init__(self, db_conn: AbstractDBLayer) -> None:
-        self.db_conn = db_conn
-
-    def create_session(self):
-        """Create a single DB session for query execution"""
-        return self.db_conn.create_session()
+    def __init__(self, source_db_conn: AbstractDBLayer, sink_db_conn: AbstractDBLayer=None) -> None:
+        self.source_db_conn = source_db_conn
+        self.sink_db_conn = sink_db_conn
 
     def execute(
         self,
         query_params: Dict[str, Union[str, int]],
         value_column_label: Union[str, None] = None,
     ):
-        """Execute given query params on the DB.
+        """Execute given query params on the source DB.
 
         Args:
             query_params (Dict[str, Union[str, int]]): query params to
@@ -214,7 +213,7 @@ class BaseService:
             Tuple[List[str], Generator]: Tuple of columns and result set
                                          generator
         """
-        with self.create_session() as session:
+        with self.source_db_conn.create_session() as session:
             query = safe_substitute(query_params)
             logger.debug(query)
             session.execute(query)
@@ -227,7 +226,6 @@ class BaseService:
                 for value in session.columns
             ]
             return (columns, session.result_set)
-
 
 class TimeseriesService(BaseService):
     """[summary]
@@ -353,3 +351,12 @@ class TimeseriesService(BaseService):
             result_generators.append(generator)
 
         return TimeSeries(result_generators)
+    
+    def store_time_series(self, df:pd.DataFrame, namespace:str=None):
+        ts_entity = cassandradb.create_timeseries_entity(df)
+        with self.sink_db_conn.create_session() as session:
+            rows = session.execute("SELECT table_name FROM system_schema.tables WHERE keyspace_name='"+ts_entity.__keyspace__+"';")
+            tables = [row["table_name"] for row in rows.all()]
+            if not ts_entity.__table_name__ in tables:
+                session.create_schema(ts_entity)
+            session.insert(df, ts_entity)
