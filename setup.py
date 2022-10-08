@@ -14,7 +14,7 @@ setup(
         "pycloudmessenger @ http://github.com/IBM/pycloudmessenger/archive/v0.7.3.tar.gz",
         "pika==0.13.0",
         "pandas==1.4.3",
-        "pyspark==3.2.1",
+        "pyspark==3.3.0",
         "cassandra-driver==3.25.0",
         "logzero",
         "ipykernel",
