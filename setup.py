@@ -1,8 +1,9 @@
 from setuptools import setup, find_packages
+import more_utils
 
 setup(
-    name="more_utils",
-    version="1.0.0",
+    name=more_utils.__package_name__,
+    version=more_utils.__version__,
     description="Python Util package for MORE applications",
     url="https://github.ibm.com/Dublin-Research-Lab/more-utils",
     author="Dhaval Salwala",
@@ -18,10 +19,10 @@ setup(
         "cassandra-driver==3.25.0",
         "logzero",
         "ipykernel",
-        "git+https://github.com/ModelarData/PyModelarDB.git"
+        "PyModelarDB @ git+https://github.com/ModelarData/PyModelarDB.git"
     ],
     extras_require={
-        "test": ["pytest", "pytest-mock"],
+        "test": ["black", "pytest", "pytest-mock"],
     },
     zip_safe=False,
 )
