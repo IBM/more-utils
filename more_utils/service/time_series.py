@@ -5,11 +5,12 @@ from typing import Dict, Union, List
 from uuid import uuid1
 from numpy import int64
 import pandas as pd
+import copy
 from more_utils.util.logging import configure_logger
 from more_utils.persistence.base import AbstractDBLayer
 import more_utils.persistence.cassandradb as cassandradb
 from .accessors import JsonAccessor, PandasAccessor, PySparkAccessor
-from .queries import safe_substitute
+from .queries import safe_substitute, safe_substitute_v2
 
 
 logger = configure_logger()
@@ -34,12 +35,13 @@ class TimeSeries(JsonAccessor, PandasAccessor, PySparkAccessor):
     def __init__(
         self,
         result_generators: List,
+        columns: Union[None, List[str]] = [],
         merge_on: Union[str, None] = None,
     ) -> None:
         super(TimeSeries, self).__init__()
         self._result_generators = result_generators
         self._merge_on = merge_on
-        self._columns = []
+        self._columns = columns
         self._result_set = []
 
     def __len__(self) -> int:
@@ -229,6 +231,34 @@ class BaseService:
             ]
             return (columns, session.result_set)
 
+    def execute_v2(
+        self,
+        query_params: Dict[str, Union[str, int]]
+    ):
+        """Execute given query params on the source DB.
+
+        Args:
+            query_params (Dict[str, Union[str, int]]): query params to
+                                                       create a query.
+            value_column_label (Union[str, None], optional): Label to replace
+                                                            value column.
+                                                            Defaults to None.
+
+        Returns:
+            Tuple[List[str], Generator]: Tuple of columns and result set
+                                         generator
+        """
+        with self.source_db_conn.create_session() as session:
+            query = safe_substitute_v2(query_params)
+            logger.debug(query)
+            session.execute(query)
+            if not session.columns:
+                raise ValueError("NULL RESPONSE FROM SERVER.")
+            columns = [value[0]
+                for value in session.columns
+            ]
+            return (columns, session.result_set)
+
 class TimeseriesService(BaseService):
     """[summary]
     Time Series Service has all the APIs to retrieve time series data from the
@@ -241,6 +271,46 @@ class TimeseriesService(BaseService):
                                    sessions.
     """
 
+    def get_time_series(
+        self,
+        model_table: str,
+        from_date: Union[str, None] = None,
+        to_date: Union[str, None] = None,
+        limit: Union[int, None] = None,
+    ) -> TimeSeries:
+        """Fetch time-series data points for time series ids in `ts_ids`.
+
+        Args:
+            model_table (str): time series model_table.
+            from_date (Union[str, None], optional): Start timestamp.
+                                                    Defaults to None.
+            to_date (Union[str, None], optional): End timestamp.
+                                                  Defaults to None.
+            limit (Union[int, None], optional): No of data points to fetch.
+                                                Defaults to None.
+
+        Returns:
+            TimeSeries: A time-series placeholder class containing time series.
+
+        Raises:
+            ValueError: if any param is not a valid argument.
+        """
+        assert isinstance(model_table, str), "Time Series model_table must be a str."
+
+        result_generators = []
+        query_params = {
+            "MODEL_TABLE": model_table,
+            "START_TIME_COLUMN": "datetime",
+            "END_TIME_COLUMN": "datetime",
+            "START_TIME": from_date,
+            "END_TIME": to_date,
+            "LIMIT": limit,
+        }
+        generator = self.execute_v2(query_params)
+        result_generators.append(generator)
+
+        return TimeSeries(result_generators=result_generators, columns=generator[0])
+    
     def get_time_series_data_from_ts_ids(
         self,
         ts_ids: List[int],
