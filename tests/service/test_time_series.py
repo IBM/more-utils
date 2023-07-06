@@ -24,7 +24,6 @@ class TestTimeseriesService:
             limit=3,
             value_column_labels=["POWER"],
         )
-        print(decompressed_ts.fetch_all())
         assert len(decompressed_ts.fetch_all()) == 3
         conn_obj.close()
 
@@ -53,9 +52,9 @@ class TestTimeseriesService:
             limit=3,
             value_column_labels=["active power", "rotor speed", "wind speed"],
         )
-        print(decompressed_ts.fetch_all(fetch_type="pandas"))
-        assert len(decompressed_ts.fetch_all(fetch_type="pandas")) == 3
+        assert len(decompressed_ts.fetch_all(fetch_type="pandas")) == 9
         assert decompressed_ts.columns == [
+            "TID",
             "TIMESTAMP",
             "active power",
             "rotor speed",
@@ -91,9 +90,9 @@ class TestTimeseriesService:
         for ts_data in decompressed_ts.fetch_next(
             batch_size=1, fetch_type="pandas"
         ):
-            print(ts_data.head())
-            assert len(ts_data) == 1
+            assert len(ts_data) == 3
         assert decompressed_ts.columns == [
+            "TID",
             "TIMESTAMP",
             "active power",
             "rotor speed",
@@ -120,7 +119,6 @@ class TestTimeseriesService:
         ts_data_models = ts_service.get_time_series_data_models_from_ts_ids(
             [1, 2], limit=2
         )
-        print(ts_data_models.fetch_all(fetch_type="pandas"))
         assert len(ts_data_models.fetch_all(fetch_type="pandas")) == 4
         assert ts_data_models.columns == data_model_columns
         conn_obj.close()
