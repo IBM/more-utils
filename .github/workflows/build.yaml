@@ -1,55 +1,55 @@
 name: MoreUtils CI
 on: 
   push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
+    branches-ignore:
+      - main
 
 jobs:
   build:
-    runs-on: ubuntu-18.04
-    timeout-minutes: 5
+    runs-on: ubuntu-20.04
     steps:
+      - name: Branch and collaborator info
+        run: |
+          echo Branch Name: ${{github.ref_name}} 
+          echo Triggered by: ${{github.actor}}
+          echo Event: ${{github.event_name}}
+          
       - name: Checkout more-utils repo
         uses: actions/checkout@v3
 
       - name: Install python version 3.8
         uses: actions/setup-python@v3
         with:
-          python-version: "3.8"
+          python-version: "3.8.*"
+          cache: "pip"
 
       - name: Install more-utils and its dependencies
         run: |
           pip install .
-      
-      - name: Install PyModelarDB
-        run: |
-          git clone https://github.com/ModelarData/PyModelarDB.git
-          cd PyModelarDB
-          pip install .
 
   test:
-    runs-on: ubuntu-18.04
-    timeout-minutes: 5
+    runs-on: ubuntu-20.04
     needs: build
     steps:
+      - name: Branch and collaborator info
+        run: |
+          echo Branch Name: ${{github.ref_name}} 
+          echo Triggered by: ${{github.actor}}
+          echo Event: ${{github.event_name}}
+
       - name: Checkout more-utils repo
         uses: actions/checkout@v3
 
       - name: Install python version 3.8
         uses: actions/setup-python@v3
         with:
-          python-version: "3.8"
+          python-version: "3.8.*"
+          cache: "pip"
 
       - name: Install more-utils and its dependencies
         run: |
           pip install .["test"]
-      
-      - name: Install PyModelarDB
-        run: |
-          git clone https://github.com/ModelarData/PyModelarDB.git
-          cd PyModelarDB
-          pip install .
 
       - name: Run tests with pytest
         run: python -m pytest --tb=native tests

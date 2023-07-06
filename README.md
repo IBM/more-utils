@@ -3,6 +3,7 @@
 MoreUtils is a Python package to support MORE applications. With moreutils, you can retrieve de-compressed time series / data models from [**ModelarDB**](https://github.com/ModelarData/ModelarDB), save and load models to the cloud object storage, upload timeseries forecast and more.
 
 ## Current State:
+
 The release tag v1.0.0 is the first integrated version that works with other MORE applications.
 
 ## Installation
@@ -12,21 +13,7 @@ installed packages.
 
 ### Python Version
 
-The package is developed using a python version of atleast 3.6.
-
-### Install PyModelarDB (recommended)
-
-If you want to connect to ModelarDB to retrieve / store time series data, install PyModelarDB from this [**link**](https://github.com/ModelarData/PyModelarDB).
-
-Alternately, You can also install PyModelarDB using the below commands.
-
-```shell
-git clone https://github.com/ModelarData/PyModelarDB.git
-cd PyModelarDB
-pip install .
-```
-
-**Note:** Make sure that the above library is installed inside the same python virtual environment.
+The package is developed using a python version of atleast 3.8.
 
 ### Run ModelarDB instance
 
@@ -69,4 +56,5 @@ Unit tests are contained in the [**tests**](https://github.com/IBM/more-utils/tr
 A series of [**examples**](https://github.ibm.com/Dublin-Research-Lab/more-utils/tree/main/examples) in the repository shows how to use various functions of MoreUtils.
 
 ## Acknowledgment
+
 This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No 957345 for MORE project.

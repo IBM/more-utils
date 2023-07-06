@@ -82,6 +82,7 @@ class ModelarDB(AbstractDBLayer):
         conn_string: Union[str, None] = None,
         hostname: str = "localhost",
         interface: str = "arrow",
+        port: int = "9999"
     ):
         """Establish a connection to ModelarDB
 
@@ -103,7 +104,7 @@ class ModelarDB(AbstractDBLayer):
         if conn_string:
             conn = pymodelardb.connect(dsn=conn_string)
         else:
-            conn = pymodelardb.connect(host=hostname, interface=interface)
+            conn = pymodelardb.connect(host=hostname, interface=interface, port=port)
         return ModelarDB(conn)
 
     def create_session(self) -> ModelarDBSession:
