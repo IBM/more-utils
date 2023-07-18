@@ -1,8 +1,9 @@
 from more_utils.persistence import ModelarDB
-from more_utils.service import TimeseriesService
+from more_utils.time_series import TimeseriesFactory
 
 
-class TestTimeseriesService:
+class TestTimeseriesFactory:
+    
     def test_execute_query(self, mocker, data_points_tid_1):
         mocker.patch(
             "more_utils.persistence.ModelarDBSession.columns",
@@ -16,8 +17,8 @@ class TestTimeseriesService:
         )
 
         conn_obj = ModelarDB.connect(hostname="localhost", interface="arrow")
-        ts_service = TimeseriesService(source_db_conn=conn_obj)
-        decompressed_ts = ts_service.get_time_series_data_from_ts_ids(
+        ts_factory = TimeseriesFactory(source_db_conn=conn_obj)
+        decompressed_ts = ts_factory.create_time_series_from_ts_ids(
             ts_ids=[1],
             from_date="2019-01-01 00:00:02.0",
             to_date="2019-01-01 00:00:06.0",
@@ -25,6 +26,31 @@ class TestTimeseriesService:
             value_column_labels=["POWER"],
         )
         assert len(decompressed_ts.fetch_all()) == 3
+        conn_obj.close()
+
+    def test_create_time_series_fetch_next(
+        self, mocker, data_points_model_table
+    ):
+        def ts_data_side_effect(*args, **kwargs):
+            return data_points_model_table
+
+        mocker.patch(
+            "more_utils.time_series.TimeseriesFactory._execute_v2",
+            side_effect=ts_data_side_effect,
+        )
+
+        conn_obj = ModelarDB.connect(hostname="localhost", interface="arrow")
+        ts_factory = TimeseriesFactory(source_db_conn=conn_obj)
+        decompressed_ts = ts_factory.create_time_series(
+            model_table="wind_turbine",
+            limit=3
+        )
+        for ts_batch in decompressed_ts.fetch_next(fetch_type="pandas", batch_size=3):
+            ...
+        assert len(ts_batch) == 3
+        assert decompressed_ts.columns == [
+            "wind_speed", "datetime", "active_power"
+        ]
         conn_obj.close()
 
     def test_get_time_series_data_from_ts_ids_fetch_all(
@@ -39,13 +65,13 @@ class TestTimeseriesService:
                 return data_points_tid_3
 
         mocker.patch(
-            "more_utils.service.time_series.BaseService.execute",
+            "more_utils.time_series.TimeseriesFactory._execute",
             side_effect=ts_data_side_effect,
         )
 
         conn_obj = ModelarDB.connect(hostname="localhost", interface="arrow")
-        ts_service = TimeseriesService(source_db_conn=conn_obj)
-        decompressed_ts = ts_service.get_time_series_data_from_ts_ids(
+        ts_factory = TimeseriesFactory(source_db_conn=conn_obj)
+        decompressed_ts = ts_factory.create_time_series_from_ts_ids(
             ts_ids=[1, 2, 3],
             from_date="2019-01-01 00:00:02.0",
             to_date="2019-01-01 00:00:06.0",
@@ -74,13 +100,13 @@ class TestTimeseriesService:
                 return data_points_tid_3
 
         mocker.patch(
-            "more_utils.service.time_series.BaseService.execute",
+            "more_utils.time_series.TimeseriesFactory._execute",
             side_effect=ts_data_side_effect,
         )
 
         conn_obj = ModelarDB.connect(hostname="localhost", interface="arrow")
-        ts_service = TimeseriesService(source_db_conn=conn_obj)
-        decompressed_ts = ts_service.get_time_series_data_from_ts_ids(
+        ts_factory = TimeseriesFactory(source_db_conn=conn_obj)
+        decompressed_ts = ts_factory.create_time_series_from_ts_ids(
             ts_ids=[1, 2, 3],
             from_date="2019-01-01 00:00:02.0",
             to_date="2019-01-01 00:00:06.0",
@@ -110,13 +136,13 @@ class TestTimeseriesService:
                 return data_models_tid_2
 
         mocker.patch(
-            "more_utils.service.time_series.BaseService.execute",
+            "more_utils.time_series.TimeseriesFactory._execute",
             side_effect=ts_data_side_effect,
         )
 
         conn_obj = ModelarDB.connect(hostname="localhost", interface="arrow")
-        ts_service = TimeseriesService(source_db_conn=conn_obj)
-        ts_data_models = ts_service.get_time_series_data_models_from_ts_ids(
+        ts_factory = TimeseriesFactory(source_db_conn=conn_obj)
+        ts_data_models = ts_factory.create_time_series_data_models_from_ts_ids(
             [1, 2], limit=2
         )
         assert len(ts_data_models.fetch_all(fetch_type="pandas")) == 4

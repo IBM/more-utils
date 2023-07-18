@@ -18,6 +18,14 @@ def create_socket():
     db_socket.bind(("localhost", DEFAULT_PORT_NUMBER))
     db_socket.listen()
 
+@pytest.fixture(scope="function")
+def data_points_model_table():
+    ts_data = [
+        (4.79, parse_ts("2019-01-01 00:00:02.0"), 0.37),
+        (4.23, parse_ts("2019-01-01 00:00:04.0"), 0.55),
+        (3.86, parse_ts("2019-01-01 00:00:06.0"), 0.73),
+    ]
+    return (["wind_speed", "datetime", "active_power"], (data for data in ts_data))
 
 @pytest.fixture(scope="function")
 def data_points_tid_1():

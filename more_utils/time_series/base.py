@@ -1,17 +1,15 @@
-"""TimeSeries service class"""
-
 import itertools
-from typing import Dict, Union, List
+from typing import Dict, List, Union
 from uuid import uuid1
-from numpy import int64
-import pandas as pd
-import copy
-from more_utils.util.logging import configure_logger
-from more_utils.persistence.base import AbstractDBLayer
-import more_utils.persistence.cassandradb as cassandradb
-from .accessors import JsonAccessor, PandasAccessor, PySparkAccessor
-from .queries import safe_substitute, safe_substitute_v2
 
+import pandas as pd
+
+import more_utils.persistence.cassandradb as cassandradb
+from more_utils.persistence.base import AbstractDBLayer
+from more_utils.util.logging import configure_logger
+
+from .accessors import JsonAccessor, PandasAccessor, PySparkAccessor
+from .query import safe_substitute, safe_substitute_v2
 
 logger = configure_logger()
 TIME_SERIES_ID_LABEL = "TID"
@@ -19,7 +17,7 @@ DEFAULT_VALUE_LABEL = "VALUE"
 TIMESTAMP_LABEL = "TIMESTAMP"
 
 
-class TimeSeries(JsonAccessor, PandasAccessor, PySparkAccessor):
+class Timeseries(JsonAccessor, PandasAccessor, PySparkAccessor):
     """[summary]
     A Time-Series placeholder class that holds time series data. The class
     instance does not store any active DB session. The class is a sink for
@@ -28,8 +26,8 @@ class TimeSeries(JsonAccessor, PandasAccessor, PySparkAccessor):
 
     Args:
         result_generators (List): A list of result set generator per
-                                    timeseries.
-        merge_on (Union[str, None]): common field to merge multiple timeseries.
+                                    Timeseries.
+        merge_on (Union[str, None]): common field to merge multiple Timeseries.
     """
 
     def __init__(
@@ -38,7 +36,7 @@ class TimeSeries(JsonAccessor, PandasAccessor, PySparkAccessor):
         columns: Union[None, List[str]] = [],
         merge_on: Union[str, None] = None,
     ) -> None:
-        super(TimeSeries, self).__init__()
+        super(Timeseries, self).__init__()
         self._result_generators = result_generators
         self._merge_on = merge_on
         self._columns = columns
@@ -89,7 +87,7 @@ class TimeSeries(JsonAccessor, PandasAccessor, PySparkAccessor):
                                         Defaults to 1.
 
         Returns:
-            [TimeSeries]: A dataframe containing time series data.
+            [Timeseries]: A dataframe containing time series data.
 
         Raises:
             ValueError: if any param is not a valid argument.
@@ -105,7 +103,7 @@ class TimeSeries(JsonAccessor, PandasAccessor, PySparkAccessor):
                                         Defaults to "pandas".
 
         Returns:
-            [TimeSeries]: A dataframe containing time series data.
+            [Timeseries]: A dataframe containing time series data.
 
         Raises:
             ValueError: if any param is not a valid argument.
@@ -156,14 +154,14 @@ class TimeSeries(JsonAccessor, PandasAccessor, PySparkAccessor):
     def _merge_time_series(
         self, data_args: List[tuple], merge_on: Union[str, None] = None
     ):
-        """Merge multiple timeseries using the merge_on field.
+        """Merge multiple Timeseries using the merge_on field.
 
         if merge_on is present, merge on the given field.
         if merge_on is None, stack time series vertically on axis = 0.
 
         Args:
             data_args (List[tuple]): List of tuples having columns and data
-            merge_on (str): common field to merge multiple timeseries.
+            merge_on (str): common field to merge multiple Timeseries.
 
         Returns:
             List[str], List[tuple]: List of column labels, merged time series.
@@ -192,14 +190,22 @@ class TimeSeries(JsonAccessor, PandasAccessor, PySparkAccessor):
         )
 
 
-class BaseService:
-    """Base class for Time Series Service."""
+class TimeseriesFactory:
+    """[summary]
+    TimeseriesFactory has all the APIs to retrieve time series data from the
+    remote database. The service uses a database connection to create one DB
+    session per API service call. The database session is closed once the API
+    call exits. The factory recreates sessions for every subsequent API call.
 
+    Args:
+        db_conn (AbstractDBLayer): database connection object to create DB
+                                   sessions.
+    """
     def __init__(self, source_db_conn: AbstractDBLayer=None, sink_db_conn: AbstractDBLayer=None) -> None:
         self.source_db_conn = source_db_conn
         self.sink_db_conn = sink_db_conn
 
-    def execute(
+    def _execute(
         self,
         query_params: Dict[str, Union[str, int]],
         value_column_label: Union[str, None] = None,
@@ -231,7 +237,7 @@ class BaseService:
             ]
             return (columns, session.result_set)
 
-    def execute_v2(
+    def _execute_v2(
         self,
         query_params: Dict[str, Union[str, int]]
     ):
@@ -259,25 +265,13 @@ class BaseService:
             ]
             return (columns, session.result_set)
 
-class TimeseriesService(BaseService):
-    """[summary]
-    Time Series Service has all the APIs to retrieve time series data from the
-    remote database. The service uses a database connection to create one DB
-    session per API service call. The database session is closed once the API
-    call exits. The service recreates sessions for every subsequent API call.
-
-    Args:
-        db_conn (AbstractDBLayer): database connection object to create DB
-                                   sessions.
-    """
-
-    def get_time_series(
+    def create_time_series(
         self,
         model_table: str,
         from_date: Union[str, None] = None,
         to_date: Union[str, None] = None,
         limit: Union[int, None] = None,
-    ) -> TimeSeries:
+    ) -> Timeseries:
         """Fetch time-series data points for time series ids in `ts_ids`.
 
         Args:
@@ -290,7 +284,7 @@ class TimeseriesService(BaseService):
                                                 Defaults to None.
 
         Returns:
-            TimeSeries: A time-series placeholder class containing time series.
+            Timeseries: A time-series placeholder class containing time series.
 
         Raises:
             ValueError: if any param is not a valid argument.
@@ -306,12 +300,12 @@ class TimeseriesService(BaseService):
             "END_TIME": to_date,
             "LIMIT": limit,
         }
-        generator = self.execute_v2(query_params)
+        generator = self._execute_v2(query_params)
         result_generators.append(generator)
 
-        return TimeSeries(result_generators=result_generators, columns=generator[0])
+        return Timeseries(result_generators=result_generators, columns=generator[0])
     
-    def get_time_series_data_from_ts_ids(
+    def create_time_series_from_ts_ids(
         self,
         ts_ids: List[int],
         from_date: Union[str, None] = None,
@@ -319,7 +313,7 @@ class TimeseriesService(BaseService):
         merge_on: str = TIMESTAMP_LABEL,
         value_column_labels: Union[List[str], None] = None,
         limit: Union[int, None] = None,
-    ) -> TimeSeries:
+    ) -> Timeseries:
         """Fetch time-series data points for time series ids in `ts_ids`.
 
         Args:
@@ -329,14 +323,14 @@ class TimeseriesService(BaseService):
             to_date (Union[str, None], optional): End timestamp.
                                                   Defaults to None.
             merge_on (str, optional): common field to merge multiple
-                                      timeseries. Defaults to TIMESTAMP_LABEL.
+                                      Timeseries. Defaults to TIMESTAMP_LABEL.
             value_column_labels (Union[List[str], None], optional): List of
             string to replace value column labels. Defaults to None.
             limit (Union[int, None], optional): No of data points to fetch.
                                                 Defaults to None.
 
         Returns:
-            TimeSeries: A time-series placeholder class containing time series.
+            Timeseries: A time-series placeholder class containing time series.
 
         Raises:
             ValueError: if any param is not a valid argument.
@@ -374,18 +368,18 @@ class TimeseriesService(BaseService):
             else:
                 value_column_label = DEFAULT_VALUE_LABEL + "_" + str(ts_id)
 
-            generator = self.execute(query_params, value_column_label)
+            generator = self._execute(query_params, value_column_label)
             result_generators.append(generator)
 
-        return TimeSeries(result_generators, merge_on)
+        return Timeseries(result_generators, merge_on)
 
-    def get_time_series_data_models_from_ts_ids(
+    def create_time_series_data_models_from_ts_ids(
         self,
         ts_ids: List[int],
         from_date: Union[str, None] = None,
         to_date: Union[str, None] = None,
         limit: Union[int, None] = None,
-    ) -> TimeSeries:
+    ) -> Timeseries:
         """Fetch time-series data models for the given time series `ts_ids`.
 
         Args:
@@ -398,7 +392,7 @@ class TimeseriesService(BaseService):
                                                 Defaults to None.
 
         Returns:
-            TimeSeries: A time-series placeholder class containing time series.
+            Timeseries: A time-series placeholder class containing time series.
 
         Raises:
             ValueError: if any param is not a valid argument.
@@ -419,10 +413,10 @@ class TimeseriesService(BaseService):
                 "END_TIME": to_date,
                 "LIMIT": limit,
             }
-            generator = self.execute(query_params)
+            generator = self._execute(query_params)
             result_generators.append(generator)
 
-        return TimeSeries(result_generators)
+        return Timeseries(result_generators)
     
     def store_time_series(self, df:pd.DataFrame, namespace:str=None)->uuid1:
         """Store time series data into Cassandra cluster.
@@ -434,9 +428,9 @@ class TimeseriesService(BaseService):
         Returns:
             uuid1: The uuid1 time-series id.
         """        
-        ts_entity = cassandradb.create_timeseries_entity(df)
+        ts_entity = cassandradb.create_Timeseries_entity(df)
         with self.sink_db_conn.create_session() as session:
-            rows = session.execute("SELECT table_name FROM system_schema.tables WHERE keyspace_name='"+ts_entity.__keyspace__+"';")
+            rows = session._execute("SELECT table_name FROM system_schema.tables WHERE keyspace_name='"+ts_entity.__keyspace__+"';")
             tables = [row["table_name"] for row in rows.all()]
             if not ts_entity.__table_name__ in tables:
                 session.create_schema(ts_entity)

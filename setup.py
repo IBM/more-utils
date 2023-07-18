@@ -19,6 +19,8 @@ setup(
         "cassandra-driver==3.25.0",
         "logzero",
         "ipykernel",
+        "protobuf==4.22.*",
+        "confluent-kafka==2.0.*",
         "PyModelarDB @ git+https://github.com/ModelarData/PyModelarDB.git"
     ],
     extras_require={
