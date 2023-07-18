@@ -12,7 +12,6 @@ def configure_logger(
     info_log_format = (
         "%(color)s[%(asctime)s:%(msecs)d] - %(levelname)s - "
         + package_name
-        + logger_name
         + " : "
         "%(end_color)s%(message)s"
     )
