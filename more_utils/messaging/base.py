@@ -18,7 +18,7 @@ class AbstractMessengingClient(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def get_receiver(self):
+    def get_consumer(self):
         raise NotImplementedError()
 
     @abc.abstractmethod

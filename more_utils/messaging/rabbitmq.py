@@ -1,4 +1,5 @@
 import argparse
+from typing import Union
 from .base import (
     AbstractMessengingClient,
     AbstractMessagePublisher,
@@ -16,7 +17,7 @@ class RabbitMQPublisher(AbstractMessagePublisher):
         self._client.publish(*args, **kwargs)
 
 
-class RabbitMQReceiver(AbstractMessageReceiver):
+class RabbitMQConsumer(AbstractMessageReceiver):
     def __init__(self, client):
         self._client = client
 
@@ -31,22 +32,22 @@ class RabbitMQClient(AbstractMessengingClient):
     def __init__(self, context, publish=None, subscribe=None):
         self._client = RabbitClient(context)
         self._publisher = RabbitMQPublisher(self._client)
-        self._receiver = RabbitMQReceiver(self._client)
-        pub_queue_name = publish if publish else context.feeds()
-        sub_queue_name = subscribe if subscribe else context.replies()
+        self._consumer = RabbitMQConsumer(self._client)
+        pub_queue_name = publish if publish else context.replies()
+        sub_queue_name = subscribe if subscribe else context.feeds()
         self._connect(pub_queue_name, sub_queue_name)
 
     def _connect(self, pub_queue_name, sub_queue_name):
         self._client.start(
-            publish=RabbitQueue(pub_queue_name, durable=True, purge=True),
+            publish=RabbitQueue(pub_queue_name, durable=True),
             subscribe=RabbitQueue(sub_queue_name, durable=True),
         )
 
     def get_publisher(self) -> RabbitMQPublisher:
         return self._publisher
 
-    def get_receiver(self) -> RabbitMQReceiver:
-        return self._receiver
+    def get_consumer(self) -> RabbitMQConsumer:
+        return self._consumer
 
     def stop(self):
         self._client.stop()
@@ -65,7 +66,13 @@ class RabbitMQFactory(AbstractMessengingFactory):
         super().__init__()
 
     @classmethod
-    def create_context(cls, args: argparse.Namespace) -> RabbitMQContext:
-        return RabbitMQContext.from_credentials_file(
-            args.credentials, args.broker_user, args.broker_password
-        )
+    def create_context(cls, args: Union[dict, argparse.Namespace], broker_user=None, broker_password=None) -> RabbitMQContext:
+        if isinstance(args, dict):
+            return RabbitMQContext.from_args(
+                args, broker_user, broker_password
+            )
+        else:
+            return RabbitMQContext.from_credentials_file(
+                args.credentials, broker_user, broker_password
+            )
+
