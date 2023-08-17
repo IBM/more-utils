@@ -12,7 +12,7 @@ setup(
     packages=find_packages("."),
     python_requires=">=3.8",
     install_requires=[
-        "pycloudmessenger @ http://github.com/IBM/pycloudmessenger/archive/v0.7.3.tar.gz",
+        "pycloudmessenger @ http://github.com/IBM/pycloudmessenger/archive/v0.8.0.tar.gz",
         "pika==0.13.0",
         "pandas>=2.0",
         "pyspark==3.3.0",
