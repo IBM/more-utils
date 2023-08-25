@@ -4,7 +4,7 @@ import more_utils
 
 
 def configure_logger(
-    package_name:str="MoreUtils", logger_name: str = "", logging_level=more_utils.get_logging_level()
+    logger_name: str, package_name:str="MoreUtils", logging_level=more_utils.get_logging_level()
 ):
     if logger_name:
         logger_name = " (" + logger_name + ")"
