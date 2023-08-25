@@ -5,10 +5,10 @@ import pprint
 from typing import List
 import pandas as pd
 import pyspark.sql as spark
-from more_utils.util.logging import configure_logger
+from more_utils.logging import configure_logger
 
 
-logger = configure_logger()
+LOGGER = configure_logger()
 
 
 class BaseAccessor(object):
@@ -71,9 +71,7 @@ class PandasAccessor(BaseAccessor):
 class PySparkAccessor(BaseAccessor):
     """Return accessor to output time series data as a PySpark dataframe"""
 
-    def to_spark(
-        self, columns: List[str], data: List[tuple]
-    ) -> spark.DataFrame:
+    def to_spark(self, columns: List[str], data: List[tuple]) -> spark.DataFrame:
         """Create timeseries in Spark dataframe
 
         Args:
@@ -84,6 +82,4 @@ class PySparkAccessor(BaseAccessor):
             spark.DataFrame: time series in Spark dataframe
         """
         session = spark.SparkSession.builder.getOrCreate()
-        return session.createDataFrame(
-            data=self.create_data(data), schema=columns
-        )
+        return session.createDataFrame(data=self.create_data(data), schema=columns)
