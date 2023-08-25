@@ -1,7 +1,7 @@
 http://github.com/IBM/pycloudmessenger/archive/v0.8.0.tar.gz
 pandas>=2.0
 pyspark==3.3.0
-cassandra-driver==3.25.0
+cassandra-driver==3.28.0
 logzero
 ipykernel
 protobuf==4.22.*
