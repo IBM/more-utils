@@ -8,7 +8,7 @@ import pyspark.sql as spark
 from more_utils.logging import configure_logger
 
 
-LOGGER = configure_logger()
+LOGGER = configure_logger(logger_name="Timeseries")
 
 
 class BaseAccessor(object):
