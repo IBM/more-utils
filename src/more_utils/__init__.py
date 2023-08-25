@@ -10,8 +10,8 @@ ModelarDB.
 3) APIs to save data to any Cloud Object Storage (COS) / Cassandra DB.
 """
 
-__version__ = "2.0.3"
-__package_name__ = "MoreUtils"
+__version__ = "2.1.0"
+__package_name__ = "moreutils"
 _logging_level = "INFO"
 
 
