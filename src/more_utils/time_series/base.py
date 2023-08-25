@@ -6,12 +6,12 @@ import pandas as pd
 
 import more_utils.persistence.cassandradb as cassandradb
 from more_utils.persistence.base import AbstractDBLayer
-from more_utils.util.logging import configure_logger
+from more_utils.logging import configure_logger
 
 from .accessors import JsonAccessor, PandasAccessor, PySparkAccessor
 from .query import safe_substitute, safe_substitute_v2
 
-logger = configure_logger()
+LOGGER = configure_logger(logger_name="Timeseries")
 TIME_SERIES_ID_LABEL = "TID"
 DEFAULT_VALUE_LABEL = "VALUE"
 TIMESTAMP_LABEL = "TIMESTAMP"
@@ -172,16 +172,10 @@ class Timeseries(JsonAccessor, PandasAccessor, PySparkAccessor):
             if master_df.empty:
                 master_df = current_df
             elif merge_on:
-                current_df = current_df.drop(
-                    labels=TIME_SERIES_ID_LABEL, axis=1
-                )
+                current_df = current_df.drop(labels=TIME_SERIES_ID_LABEL, axis=1)
                 if TIME_SERIES_ID_LABEL in master_df.columns:
-                    master_df = master_df.drop(
-                        labels=TIME_SERIES_ID_LABEL, axis=1
-                    )
-                master_df = pd.merge(
-                    master_df, current_df, on=merge_on, how="outer"
-                )
+                    master_df = master_df.drop(labels=TIME_SERIES_ID_LABEL, axis=1)
+                master_df = pd.merge(master_df, current_df, on=merge_on, how="outer")
             else:
                 master_df = pd.concat([master_df, current_df])
 
@@ -201,7 +195,12 @@ class TimeseriesFactory:
         db_conn (AbstractDBLayer): database connection object to create DB
                                    sessions.
     """
-    def __init__(self, source_db_conn: AbstractDBLayer=None, sink_db_conn: AbstractDBLayer=None) -> None:
+
+    def __init__(
+        self,
+        source_db_conn: AbstractDBLayer = None,
+        sink_db_conn: AbstractDBLayer = None,
+    ) -> None:
         self.source_db_conn = source_db_conn
         self.sink_db_conn = sink_db_conn
 
@@ -225,7 +224,7 @@ class TimeseriesFactory:
         """
         with self.source_db_conn.create_session() as session:
             query = safe_substitute(query_params)
-            logger.debug(query)
+            LOGGER.debug(query)
             session.execute(query)
             if not session.columns:
                 raise ValueError("NULL RESPONSE FROM SERVER.")
@@ -237,10 +236,7 @@ class TimeseriesFactory:
             ]
             return (columns, session.result_set)
 
-    def _execute_v2(
-        self,
-        query_params: Dict[str, Union[str, int]]
-    ):
+    def _execute_v2(self, query_params: Dict[str, Union[str, int]]):
         """Execute given query params on the source DB.
 
         Args:
@@ -256,13 +252,11 @@ class TimeseriesFactory:
         """
         with self.source_db_conn.create_session() as session:
             query = safe_substitute_v2(query_params)
-            logger.debug(query)
+            LOGGER.debug(query)
             session.execute(query)
             if not session.columns:
                 raise ValueError("NULL RESPONSE FROM SERVER.")
-            columns = [value[0]
-                for value in session.columns
-            ]
+            columns = [value[0] for value in session.columns]
             return (columns, session.result_set)
 
     def create_time_series(
@@ -304,7 +298,7 @@ class TimeseriesFactory:
         result_generators.append(generator)
 
         return Timeseries(result_generators=result_generators, columns=generator[0])
-    
+
     def create_time_series_from_ts_ids(
         self,
         ts_ids: List[int],
@@ -417,8 +411,8 @@ class TimeseriesFactory:
             result_generators.append(generator)
 
         return Timeseries(result_generators)
-    
-    def store_time_series(self, df:pd.DataFrame, namespace:str=None)->uuid1:
+
+    def store_time_series(self, df: pd.DataFrame, namespace: str = None) -> uuid1:
         """Store time series data into Cassandra cluster.
 
         Args:
@@ -427,10 +421,14 @@ class TimeseriesFactory:
 
         Returns:
             uuid1: The uuid1 time-series id.
-        """        
+        """
         ts_entity = cassandradb.create_Timeseries_entity(df)
         with self.sink_db_conn.create_session() as session:
-            rows = session._execute("SELECT table_name FROM system_schema.tables WHERE keyspace_name='"+ts_entity.__keyspace__+"';")
+            rows = session._execute(
+                "SELECT table_name FROM system_schema.tables WHERE keyspace_name='"
+                + ts_entity.__keyspace__
+                + "';"
+            )
             tables = [row["table_name"] for row in rows.all()]
             if not ts_entity.__table_name__ in tables:
                 session.create_schema(ts_entity)
