@@ -12,6 +12,7 @@ from .accessors import JsonAccessor, PandasAccessor, PySparkAccessor
 from .query import safe_substitute, safe_substitute_v2
 
 LOGGER = configure_logger(logger_name="Timeseries")
+LOGGER_mt = configure_logger(logger_name="ModelTable")
 TIME_SERIES_ID_LABEL = "TID"
 DEFAULT_VALUE_LABEL = "VALUE"
 TIMESTAMP_LABEL = "TIMESTAMP"
@@ -466,8 +467,36 @@ class ModelTable:
         Raises:
             ValueError: if any param is not a valid argument.
         """
-        # read parquet file
-        arrow_table = cls.read_parquet_file_or_folder(file_path)
+
+        # Read Apache Parquet file or folder.
+        arrow_table = parquet.read_table(file_path)
+
+        # Ensure the schema only uses supported features.
+        arrow_table = cls.validate_schema_fields(arrow_table)
+
+        return ModelTable(modelardb_conn, arrow_table)
+
+    @classmethod
+    def from_arrow_table(
+        cls,
+        modelardb_conn: ModelarDB,
+        arrow_table: pyarrow.Table,
+    ):
+        """Returns an instance of the ModelTable from the parquet file.
+
+        Args:
+            modelardb_conn (ModelarDB): ModelarDB connection object
+            arrow_table (pyarrow.Table): pyarrow table format
+
+        Returns:
+            ModelTable: Returns an instance of the ModelTable from the arrow_table.
+
+        Raises:
+            ValueError: if any param is not a valid argument.
+        """
+
+        # Ensure the schema only uses supported features.
+        arrow_table = cls.validate_schema_fields(arrow_table)
 
         return ModelTable(modelardb_conn, arrow_table)
 
@@ -484,12 +513,16 @@ class ModelTable:
         with self.modelardb_conn.create_arrow_session() as session:
             session.insert(table_name, self.arrow_table)
 
+        LOGGER_mt.info(f"Data inserted successfully into the table '{table_name}'.")
+
     def flush(self, flush_mode: Literal["local", "cos"] = "local"):
         # Flush data to disk or object store.
         if flush_mode == "local":
             self.export_to_local()
         elif flush_mode == "cos":
             self.export_to_cos()
+
+        LOGGER_mt.info(f"Compressed data buffers flushed.")
 
     def export_to_local(self):
         with self.modelardb_conn.create_arrow_session() as session:
@@ -516,12 +549,11 @@ class ModelTable:
         with self.modelardb_conn.create_arrow_session() as session:
             session.execute_action("CommandStatementUpdate", str.encode(sql))
 
-    @classmethod
-    def read_parquet_file_or_folder(cls, file_path):
-        # Read Apache Parquet file or folder.
-        arrow_table = parquet.read_table(file_path)
+        LOGGER_mt.info(f"Model Table '{table_name}' created.")
 
-        # Ensure the schema only uses supported features.
+    # Ensure the schema only uses supported features.
+    @classmethod
+    def validate_schema_fields(cls, arrow_table):
         columns = []
         column_names = []
         for field in arrow_table.schema:
