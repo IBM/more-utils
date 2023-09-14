@@ -1,10 +1,11 @@
-http://github.com/IBM/pycloudmessenger/archive/v0.8.0.tar.gz
+pycloudmessenger==0.8.2
 pandas>=2.0
-pyspark==3.3.0
-cassandra-driver==3.28.0
+pyspark>=3.3.0
+cassandra-driver>=3.28.0
 logzero
+black
 ipykernel
 protobuf==4.22.*
-confluent-kafka==2.0.*
-pyarrow==13.0.0
+confluent-kafka>=2.0
+pyarrow>=13.0.0
 git+https://github.com/ModelarData/PyModelarDB.git
