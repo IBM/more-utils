@@ -1,6 +1,7 @@
 import pymodelardb as pymodelardb
 from .base import AbstractDBLayer, AbstractDBSession
-from typing import Union
+from typing import Union, Literal
+from more_utils.persistence.arrow import ArrowCursor
 
 
 class ModelarDBSession(AbstractDBSession):
@@ -52,9 +53,15 @@ class ModelarDBSession(AbstractDBSession):
             print("Exception: ", str(error))
             return 0
 
-    def insert(self, data):
-        raise NotImplementedError()
-        
+    def execute_action(self, *args, **kwargs):
+        self._cursor.execute_action(*args, **kwargs)
+
+    def insert(self, *args, **kwargs):
+        self._cursor.insert(*args, **kwargs)
+
+    def list(self):
+        return self._cursor.list()
+
     def __exit__(self, *args):
         return self.close()
 
@@ -81,8 +88,8 @@ class ModelarDB(AbstractDBLayer):
         cls,
         conn_string: Union[str, None] = None,
         hostname: str = "localhost",
-        interface: str = "arrow",
-        port: int = "9999"
+        port: int = "9999",
+        interface: Literal["arrow", "http", "socket"] = "arrow",
     ):
         """Establish a connection to ModelarDB
 
@@ -115,6 +122,26 @@ class ModelarDB(AbstractDBLayer):
                               It holds a cursor with the ModelarDB.
         """
         return ModelarDBSession(self._db_conn.cursor())
+
+    def create_arrow_session(self) -> ModelarDBSession:
+        """Open a cursor with the ModelarDB connection.
+
+        Returns:
+            ModelarDBSession: An object of the type ModelarDBSession.
+                              It holds a cursor with the ModelarDB.
+        """
+        return ModelarDBSession(
+            ArrowCursor(
+                self._db_conn,
+                self._db_conn._Connection__host,
+                self._db_conn._Connection__port,
+            )
+        )
+
+    def list_tables(self):
+        with self.create_arrow_session() as session:
+            tables = session.list()
+            return [table.decode("UTF-8") for table in list(tables)[0]]
 
     def close(self):
         """Mark the connection as closed."""

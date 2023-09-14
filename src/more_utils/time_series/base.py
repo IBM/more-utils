@@ -1,13 +1,13 @@
 import itertools
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Literal
 from uuid import uuid1
-
+import pyarrow
 import pandas as pd
-
+from more_utils.persistence.modelardb import ModelarDB
 import more_utils.persistence.cassandradb as cassandradb
 from more_utils.persistence.base import AbstractDBLayer
 from more_utils.logging import configure_logger
-
+from pyarrow import parquet
 from .accessors import JsonAccessor, PandasAccessor, PySparkAccessor
 from .query import safe_substitute, safe_substitute_v2
 
@@ -34,7 +34,7 @@ class Timeseries(JsonAccessor, PandasAccessor, PySparkAccessor):
         self,
         result_generators: List,
         columns: Union[None, List[str]] = [],
-        merge_on: Union[str, None] = None,
+        merge_on: Union[str, None] = None,  # used in legacy JVM based modelardb only.
     ) -> None:
         super(Timeseries, self).__init__()
         self._result_generators = result_generators
@@ -76,7 +76,11 @@ class Timeseries(JsonAccessor, PandasAccessor, PySparkAccessor):
         """
         return len(self._result_set)
 
-    def fetch_next(self, fetch_type: str = "pandas", batch_size: int = 1):
+    def fetch_next(
+        self,
+        fetch_type: Literal["pandas", "spark", "json"] = "pandas",
+        batch_size: int = 1,
+    ):
         """Return time-series data batch_size at a time.
 
         Args:
@@ -94,7 +98,7 @@ class Timeseries(JsonAccessor, PandasAccessor, PySparkAccessor):
         """
         return self._create_ts_generator(fetch_type, batch_size)
 
-    def fetch_all(self, fetch_type="pandas"):
+    def fetch_all(self, fetch_type: Literal["pandas", "spark", "json"] = "pandas"):
         """Return entire time-series data.
 
         Args:
@@ -113,7 +117,9 @@ class Timeseries(JsonAccessor, PandasAccessor, PySparkAccessor):
             return method(columns=self._columns, data=self._result_set)
         return next(self._create_ts_generator(fetch_type))
 
-    def _create_ts_generator(self, fetch_type: str, batch_size=None):
+    def _create_ts_generator(
+        self, fetch_type: Literal["pandas", "spark", "json"], batch_size=None
+    ):
         """Create time series generator from `self._result_generators`
 
         Args:
@@ -435,3 +441,107 @@ class TimeseriesFactory:
             time_series_id = session.insert(df, ts_entity)
 
         return time_series_id
+
+
+class ModelTable:
+    def __init__(self, modelardb_conn: ModelarDB, arrow_table) -> None:
+        self.modelardb_conn = modelardb_conn
+        self.arrow_table = arrow_table
+
+    @classmethod
+    def from_parquet_file(
+        cls,
+        modelardb_conn: ModelarDB,
+        file_path: str,
+    ):
+        """Returns an instance of the ModelTable from the parquet file.
+
+        Args:
+            modelardb_conn (ModelarDB): ModelarDB connection object
+            file_path (str): parquet file path
+
+        Returns:
+            ModelTable: Returns an instance of the ModelTable from the parquet file.
+
+        Raises:
+            ValueError: if any param is not a valid argument.
+        """
+        # read parquet file
+        arrow_table = cls.read_parquet_file_or_folder(file_path)
+
+        return ModelTable(modelardb_conn, arrow_table)
+
+    def persist(
+        self,
+        table_name: str,
+        error_bound: float,
+    ):
+        if not table_name in self.modelardb_conn.list_tables():
+            # insert model table schema
+            self.create_model_table(table_name, self.arrow_table.schema, error_bound)
+
+        # insert parquet file data
+        with self.modelardb_conn.create_arrow_session() as session:
+            session.insert(table_name, self.arrow_table)
+
+    def flush(self, flush_mode: Literal["local", "cos"] = "local"):
+        # Flush data to disk or object store.
+        if flush_mode == "local":
+            self.export_to_local()
+        elif flush_mode == "cos":
+            self.export_to_cos()
+
+    def export_to_local(self):
+        with self.modelardb_conn.create_arrow_session() as session:
+            session.execute_action("FlushMemory", b"")
+
+    def export_to_cos(self):
+        with self.modelardb_conn.create_session() as session:
+            session.create_arrow_session("FlushEdge", b"")
+
+    def create_model_table(self, table_name, schema, error_bound):
+        columns = []
+        for field in schema:
+            if field.type == pyarrow.timestamp("ms"):
+                columns.append(f"{field.name} TIMESTAMP")
+            elif field.type == pyarrow.float32():
+                columns.append(f"{field.name} FIELD({error_bound})")
+            elif field.type == pyarrow.string():
+                columns.append(f"{field.name} TAG")
+            else:
+                raise ValueError(f"Unsupported Data Type: {field.type}")
+
+        sql = f"CREATE MODEL TABLE {table_name} ({', '.join(columns)})"
+
+        with self.modelardb_conn.create_arrow_session() as session:
+            session.execute_action("CommandStatementUpdate", str.encode(sql))
+
+    @classmethod
+    def read_parquet_file_or_folder(cls, file_path):
+        # Read Apache Parquet file or folder.
+        arrow_table = parquet.read_table(file_path)
+
+        # Ensure the schema only uses supported features.
+        columns = []
+        column_names = []
+        for field in arrow_table.schema:
+            # Ensure that none of the field names contain whitespace.
+            safe_name = field.name.replace(" ", "_")
+            column_names.append(safe_name)
+
+            # Ensure all fields are float32 as float64 are not supported.
+            if field.type == pyarrow.float64():
+                columns.append((safe_name, pyarrow.float32()))
+            elif field.type == pyarrow.int64():
+                columns.append((safe_name, pyarrow.float32()))
+            elif field.type == pyarrow.timestamp("us"):
+                columns.append((field.name, pyarrow.timestamp("ms")))
+            else:
+                columns.append((safe_name, field.type))
+
+        safe_schema = pyarrow.schema(columns)
+
+        # Rename columns to remove whitespaces and cast them to remove float64.
+        arrow_table = arrow_table.rename_columns(column_names)
+
+        return arrow_table.cast(safe_schema)
