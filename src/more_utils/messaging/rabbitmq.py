@@ -31,8 +31,6 @@ class RabbitMQClient(AbstractMessengingClient):
 
     def __init__(self, context, publish=None, subscribe=None):
         self._client = RabbitClient(context)
-        self._publisher = RabbitMQPublisher(self._client)
-        self._consumer = RabbitMQConsumer(self._client)
         pub_queue_name = publish if publish else context.replies()
         sub_queue_name = subscribe if subscribe else context.feeds()
         self._connect(pub_queue_name, sub_queue_name)
@@ -44,10 +42,10 @@ class RabbitMQClient(AbstractMessengingClient):
         )
 
     def get_publisher(self) -> RabbitMQPublisher:
-        return self._publisher
+        return RabbitMQPublisher(self._client)
 
     def get_consumer(self) -> RabbitMQConsumer:
-        return self._consumer
+        return RabbitMQConsumer(self._client)
 
     def stop(self):
         self._client.stop()
@@ -66,13 +64,15 @@ class RabbitMQFactory(AbstractMessengingFactory):
         super().__init__()
 
     @classmethod
-    def create_context(cls, args: Union[dict, argparse.Namespace], broker_user=None, broker_password=None) -> RabbitMQContext:
+    def create_context(
+        cls,
+        args: Union[dict, argparse.Namespace],
+        broker_user=None,
+        broker_password=None,
+    ) -> RabbitMQContext:
         if isinstance(args, dict):
-            return RabbitMQContext.from_args(
-                args, broker_user, broker_password
-            )
+            return RabbitMQContext.from_args(args, broker_user, broker_password)
         else:
             return RabbitMQContext.from_credentials_file(
                 args.credentials, broker_user, broker_password
             )
-

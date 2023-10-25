@@ -116,7 +116,14 @@ class Timeseries(JsonAccessor, PandasAccessor, PySparkAccessor):
         if self._result_set:
             method = getattr(self, "to_" + fetch_type)
             return method(columns=self._columns, data=self._result_set)
-        return next(self._create_ts_generator(fetch_type))
+
+        ts_data = None
+        try:
+            ts_data = next(self._create_ts_generator(fetch_type))
+        except StopIteration:
+            ...
+
+        return ts_data
 
     def _create_ts_generator(
         self, fetch_type: Literal["pandas", "spark", "json"], batch_size=None
