@@ -8,4 +8,4 @@ ipykernel
 protobuf==4.22.*
 confluent-kafka>=2.0
 pyarrow>=13.0.0
-git+https://github.com/ModelarData/PyModelarDB.git
+PyModelarDB@git+https://github.com/ModelarData/PyModelarDB.git

@@ -10,6 +10,7 @@ description = "Python Util package for MORE applications"
 dynamic = [
     "version",
     "readme",
+    "dependencies",
 ]
 authors = [
     { name = "Dhaval Salwala", email = "dhaval.vinodbhai.salwala@ibm.com" },
@@ -30,6 +31,13 @@ version = { attr = "more_utils.__version__" }
 readme = { file = [
     "README.md",
 ], content-type = "text/markdown" }
+dependencies = {file = ["requirements.txt"]}
+
+[project.optional-dependencies]
+tests = [
+    "pytest",
+    "pytest-mock"
+]
 
 [tool.setuptools.packages.find]
 where = [
