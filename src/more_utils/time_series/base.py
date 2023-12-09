@@ -5,7 +5,7 @@ import pyarrow
 import pandas as pd
 from more_utils.persistence.modelardb import ModelarDB
 
-# import more_utils.persistence.cassandradb as cassandradb
+import more_utils.persistence.cassandradb as cassandradb
 from more_utils.persistence.base import AbstractDBLayer
 from more_utils.logging import configure_logger
 from pyarrow import parquet
@@ -237,7 +237,7 @@ class TimeseriesFactory:
             Tuple[List[str], Generator]: Tuple of columns and result set
                                          generator
         """
-        with self.source_db_conn.create_session() as session:
+        with self.source_db_conn.create_session(conn_type="cloud") as session:
             query = safe_substitute(query_params)
             LOGGER.debug(query)
             session.execute(query)
@@ -265,7 +265,7 @@ class TimeseriesFactory:
             Tuple[List[str], Generator]: Tuple of columns and result set
                                          generator
         """
-        with self.source_db_conn.create_session() as session:
+        with self.source_db_conn.create_session(conn_type="cloud") as session:
             query = safe_substitute_v2(query_params)
             LOGGER.debug(query)
             session.execute(query)
@@ -513,35 +513,15 @@ class ModelTable:
         table_name: str,
         error_bound: float,
     ):
-        # if not table_name in self.modelardb_conn.list_tables():
-        #     # insert model table schema
-        #     self.create_model_table(table_name, self.arrow_table.schema, error_bound)
+        if not table_name in self.modelardb_conn.list_tables():
+            # insert model table schema
+            self.create_model_table(table_name, self.arrow_table.schema, error_bound)
 
         # insert parquet file data
-        edge_session = ModelarDB.connect(
-            hostname="83.212.75.52", port=9999, interface="arrow"
-        )
         with self.modelardb_conn.create_arrow_session(conn_type="edge") as session:
             session.insert(table_name, self.arrow_table)
 
         LOGGER_mt.info(f"Data inserted successfully into the table '{table_name}'.")
-
-    def flush(self, flush_mode: Literal["local", "cos"] = "local"):
-        # Flush data to disk or object store.
-        if flush_mode == "local":
-            self.export_to_local()
-        elif flush_mode == "cos":
-            self.export_to_cos()
-
-        LOGGER_mt.info(f"Compressed data buffers flushed.")
-
-    def export_to_local(self):
-        with self.modelardb_conn.create_arrow_session() as session:
-            session.execute_action("FlushMemory", b"")
-
-    def export_to_cos(self):
-        with self.modelardb_conn.create_session() as session:
-            session.create_arrow_session("FlushEdge", b"")
 
     def create_model_table(self, table_name, schema, error_bound):
         columns = []
@@ -557,7 +537,7 @@ class ModelTable:
 
         sql = f"CREATE MODEL TABLE {table_name} ({', '.join(columns)})"
 
-        with self.modelardb_conn.create_arrow_session() as session:
+        with self.modelardb_conn.create_arrow_session(conn_type="manager") as session:
             session.execute_action("CommandStatementUpdate", str.encode(sql))
 
         LOGGER_mt.info(f"Model Table '{table_name}' created.")

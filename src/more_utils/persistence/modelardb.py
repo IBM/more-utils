@@ -1,9 +1,9 @@
 import pymodelardb as pymodelardb
 from .base import AbstractDBLayer, AbstractDBSession
-from typing import Union, Literal
+from typing import Literal
 from more_utils.persistence.arrow import ArrowCursor
-
-
+from more_utils.logging import configure_logger
+LOGGER = configure_logger(logger_name="ModelarDB")
 class ModelarDBSession(AbstractDBSession):
     """
     Class that holds a cursor with the ModelarDB connection.
@@ -170,6 +170,16 @@ class ModelarDB(AbstractDBLayer):
             )
         )
 
+    def flush(self, mode: Literal["FlushMemory", "FlushEdge"] = "FlushEdge"):
+        # Flush data to disk or object store.
+        with self.create_arrow_session(conn_type="edge") as session:
+            if mode == "FlushMemory":
+                session.execute_action("FlushMemory", b"")
+            elif mode == "FlushEdge":
+                session.execute_action("FlushEdge", b"")
+
+        LOGGER.info(f"{mode}: Compressed data buffers flushed.")
+
     def list_tables(self):
         with self.create_arrow_session(conn_type="manager") as session:
             tables = session.list()
@@ -177,4 +187,6 @@ class ModelarDB(AbstractDBLayer):
 
     def close(self):
         """Mark the connection as closed."""
-        self._db_conn.close()
+        self._manager_conn.close()
+        self._edge_conn.close()
+        self._cloud_conn.close()
