@@ -79,16 +79,19 @@ class ModelarDB(AbstractDBLayer):
         db_conn -- Connection object that opens the session to the ModelarDB.
     """
 
-    def __init__(self, db_conn) -> None:
+    def __init__(self, manager_conn, edge_conn, cloud_conn) -> None:
         super(ModelarDB, self).__init__()
-        self._db_conn = db_conn
+        self._manager_conn = manager_conn
+        self._edge_conn = edge_conn
+        self._cloud_conn = cloud_conn
 
     @classmethod
     def connect(
         cls,
-        conn_string: Union[str, None] = None,
         hostname: str = "localhost",
-        port: int = "9999",
+        manager_port: int = "9998",
+        edge_port: int = "9999",
+        cloud_port: int = "9997",
         interface: Literal["arrow", "http", "socket"] = "arrow",
     ):
         """Establish a connection to ModelarDB
@@ -108,38 +111,67 @@ class ModelarDB(AbstractDBLayer):
         Raises:
             ValueError: if any param is not a valid argument.
         """
-        if conn_string:
-            conn = pymodelardb.connect(dsn=conn_string)
+        manager_conn = pymodelardb.connect(
+            host=hostname, interface=interface, port=manager_port
+        )
+        edge_conn = pymodelardb.connect(
+            host=hostname, interface=interface, port=edge_port
+        )
+        cloud_conn = pymodelardb.connect(
+            host=hostname, interface=interface, port=cloud_port
+        )
+
+        return ModelarDB(manager_conn, edge_conn, cloud_conn)
+
+    def create_session(
+        self, conn_type: Literal["manager", "edge", "cloud"]
+    ) -> ModelarDBSession:
+        """Open a cursor with the ModelarDB connection.
+
+        Returns:
+            ModelarDBSession: An object of the type ModelarDBSession.
+                              It holds a cursor with the ModelarDB.
+        """
+
+        if "manager" == conn_type:
+            return ModelarDBSession(self._manager_conn.cursor())
+        elif "edge" == conn_type:
+            return ModelarDBSession(self._edge_conn.cursor())
+        elif "cloud" == conn_type:
+            return ModelarDBSession(self._cloud_conn.cursor())
         else:
-            conn = pymodelardb.connect(host=hostname, interface=interface, port=port)
-        return ModelarDB(conn)
+            raise Exception(
+                "Invalid ModelarDB connection type. Valid valies ['manager', 'edge', 'cloud']"
+            )
 
-    def create_session(self) -> ModelarDBSession:
+    def create_arrow_session(self, conn_type) -> ModelarDBSession:
         """Open a cursor with the ModelarDB connection.
 
         Returns:
             ModelarDBSession: An object of the type ModelarDBSession.
                               It holds a cursor with the ModelarDB.
         """
-        return ModelarDBSession(self._db_conn.cursor())
+        if "manager" == conn_type:
+            conn = self._manager_conn
+        elif "edge" == conn_type:
+            conn = self._edge_conn
+        elif "cloud" == conn_type:
+            conn = self._cloud_conn
+        else:
+            raise Exception(
+                "Invalid ModelarDB connection type. Valid valies ['manager', 'edge', 'cloud']"
+            )
 
-    def create_arrow_session(self) -> ModelarDBSession:
-        """Open a cursor with the ModelarDB connection.
-
-        Returns:
-            ModelarDBSession: An object of the type ModelarDBSession.
-                              It holds a cursor with the ModelarDB.
-        """
         return ModelarDBSession(
             ArrowCursor(
-                self._db_conn,
-                self._db_conn._Connection__host,
-                self._db_conn._Connection__port,
+                conn,
+                conn._Connection__host,
+                conn._Connection__port,
             )
         )
 
     def list_tables(self):
-        with self.create_arrow_session() as session:
+        with self.create_arrow_session(conn_type="manager") as session:
             tables = session.list()
             return [table.decode("UTF-8") for table in list(tables)[0]]
 

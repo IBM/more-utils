@@ -4,7 +4,8 @@ from uuid import uuid1
 import pyarrow
 import pandas as pd
 from more_utils.persistence.modelardb import ModelarDB
-import more_utils.persistence.cassandradb as cassandradb
+
+# import more_utils.persistence.cassandradb as cassandradb
 from more_utils.persistence.base import AbstractDBLayer
 from more_utils.logging import configure_logger
 from pyarrow import parquet
@@ -489,7 +490,7 @@ class ModelTable:
         modelardb_conn: ModelarDB,
         arrow_table: pyarrow.Table,
     ):
-        """Returns an instance of the ModelTable from the parquet file.
+        """Returns an instance of the ModelTable from the arrow table.
 
         Args:
             modelardb_conn (ModelarDB): ModelarDB connection object
@@ -512,12 +513,15 @@ class ModelTable:
         table_name: str,
         error_bound: float,
     ):
-        if not table_name in self.modelardb_conn.list_tables():
-            # insert model table schema
-            self.create_model_table(table_name, self.arrow_table.schema, error_bound)
+        # if not table_name in self.modelardb_conn.list_tables():
+        #     # insert model table schema
+        #     self.create_model_table(table_name, self.arrow_table.schema, error_bound)
 
         # insert parquet file data
-        with self.modelardb_conn.create_arrow_session() as session:
+        edge_session = ModelarDB.connect(
+            hostname="83.212.75.52", port=9999, interface="arrow"
+        )
+        with self.modelardb_conn.create_arrow_session(conn_type="edge") as session:
             session.insert(table_name, self.arrow_table)
 
         LOGGER_mt.info(f"Data inserted successfully into the table '{table_name}'.")
